@@ -28,11 +28,12 @@ uint8_t VCORE_init(GlobalState * global_state) {
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
             if (global_state->board_version >= 402 && global_state->board_version <= 499) {
-                result = TPS546_init();
+                result = TPS546_init(global_state);
             }
             break;
         case DEVICE_GAMMA:
-            result = TPS546_init();
+        case DEVICE_LV07:
+            result = TPS546_init(global_state);
             break;
         // case DEVICE_HEX:
         default:
@@ -86,6 +87,7 @@ bool VCORE_set_voltage(float core_voltage, GlobalState * global_state)
             }
             break;
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
                 ESP_LOGI(TAG, "Set ASIC voltage = %.3fV", core_voltage);
                 TPS546_set_vout(core_voltage * (float)global_state->voltage_domain);
             break;
@@ -97,5 +99,10 @@ bool VCORE_set_voltage(float core_voltage, GlobalState * global_state)
 }
 
 uint16_t VCORE_get_voltage_mv(GlobalState * global_state) {
+    switch (global_state->device_model) {
+        case DEVICE_LV07:
+           return TPS546_get_vout() * 1000 / global_state->voltage_domain;
+        default:
+    }
     return ADC_get_vcore() / global_state->voltage_domain;
 }

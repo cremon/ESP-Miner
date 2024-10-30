@@ -21,6 +21,9 @@
 #include "system.h"
 #include "i2c_bitaxe.h"
 #include "EMC2101.h"
+#include "EMC230X.h"
+#include "TPS546.h"
+#include "TMP1075.h"
 #include "INA260.h"
 #include "adc.h"
 #include "connect.h"
@@ -97,6 +100,7 @@ void SYSTEM_init_system(GlobalState * GLOBAL_STATE)
 
 
 void SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
+    SystemModule * module = &GLOBAL_STATE->SYSTEM_MODULE;
     // Initialize the core voltage regulator
     VCORE_init(GLOBAL_STATE);
     VCORE_set_voltage(nvs_config_get_u16(NVS_CONFIG_ASIC_VOLTAGE, CONFIG_ASIC_VOLTAGE) / 1000.0, GLOBAL_STATE);
@@ -112,6 +116,15 @@ void SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
         default:
     }
 
+    switch (GLOBAL_STATE->device_model) {
+        case DEVICE_LV07:
+            EMC230X_init(EMC230X_PRODUCT_EMC2302, FAN1);
+            nvs_config_set_u16(NVS_CONFIG_OVERHEAT_MODE, 0);
+             module->overheat_mode = 0;
+            break;
+        default:
+    }
+
     //initialize the INA260, if we have one.
     switch (GLOBAL_STATE->device_model) {
         case DEVICE_MAX:
@@ -123,6 +136,7 @@ void SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
             }
             break;
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
         default:
     }
 
@@ -140,6 +154,7 @@ void SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
             // oled
             if (!OLED_init()) {
                 ESP_LOGI(TAG, "OLED init failed!");
@@ -379,6 +394,7 @@ static void _show_overheat_screen(GlobalState * GLOBAL_STATE)
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
             if (OLED_status()) {
                 OLED_clearLine(0);
                 OLED_writeString(0, 0, "DEVICE OVERHEAT!");
@@ -409,6 +425,7 @@ static void _update_screen_one(GlobalState * GLOBAL_STATE)
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
             if (OLED_status()) {
                 float efficiency = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.power / (module->current_hashrate / 1000.0);
 
@@ -444,6 +461,7 @@ static void _update_screen_two(GlobalState * GLOBAL_STATE)
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
             if (OLED_status()) {
                 // Pool URL
                 OLED_writeString(0, 0, "Mining URL:");
@@ -486,6 +504,7 @@ static void _clear_display(GlobalState * GLOBAL_STATE)
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
             OLED_clearLine(0);
             OLED_clearLine(1);
             OLED_clearLine(2);
@@ -504,6 +523,7 @@ static void _init_connection(GlobalState * GLOBAL_STATE)
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
             if (OLED_status()) {
                 memset(module->oled_buf, 0, 20);
                 snprintf(module->oled_buf, 20, "Connecting to SSID:");
@@ -523,6 +543,7 @@ static void _update_connection(GlobalState * GLOBAL_STATE)
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
             if (OLED_status()) {
                 OLED_clearLine(2);
                 strncpy(module->oled_buf, module->ssid, sizeof(module->oled_buf));
@@ -552,6 +573,7 @@ static void show_ap_information(const char * error, GlobalState * GLOBAL_STATE)
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
             if (OLED_status()) {
                 _clear_display(GLOBAL_STATE);
                 if (error != NULL) {

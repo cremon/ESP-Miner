@@ -1,6 +1,7 @@
 #include "i2c_bitaxe.h"
 #include "DS4432U.h"
 #include "EMC2101.h"
+#include "EMC230X.h"
 #include "INA260.h"
 #include "adc.h"
 #include "esp_log.h"
@@ -38,6 +39,7 @@ static void display_msg(char * msg, GlobalState * GLOBAL_STATE) {
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
             if (OLED_status()) {
                 memset(module->oled_buf, 0, 20);
                 snprintf(module->oled_buf, 20, msg);
@@ -75,6 +77,9 @@ static bool fan_sense_pass(GlobalState * GLOBAL_STATE)
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
             fan_speed = EMC2101_get_fan_speed();
+            break;
+        case DEVICE_LV07:
+            fan_speed = EMC230X_get_fan_speed(FAN1);
             break;
         default:
     }
@@ -156,6 +161,7 @@ void self_test(void * pvParameters)
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
             // turn ASIC on
             gpio_set_direction(GPIO_NUM_10, GPIO_MODE_OUTPUT);
             gpio_set_level(GPIO_NUM_10, 0);
@@ -170,6 +176,10 @@ void self_test(void * pvParameters)
         case DEVICE_GAMMA:
             EMC2101_init(nvs_config_get_u16(NVS_CONFIG_INVERT_FAN_POLARITY, 1));
             EMC2101_set_fan_speed(1);
+            break;
+        case DEVICE_LV07:
+            EMC230X_init(EMC230X_PRODUCT_EMC2302, FAN1);
+            EMC230X_set_fan_speed(FAN1, 1);
             break;
         default:
     }
@@ -217,6 +227,8 @@ void self_test(void * pvParameters)
             }
             break;
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
+            break;
         default:
     }
 

@@ -1,4 +1,5 @@
 #include "EMC2101.h"
+#include "EMC230X.h"
 #include "INA260.h"
 #include "bm1397.h"
 #include "esp_log.h"
@@ -9,6 +10,7 @@
 #include "mining.h"
 #include "nvs_config.h"
 #include "serial.h"
+#include "TMP1075.h"
 #include "TPS546.h"
 #include "vcore.h"
 #include <string.h>
@@ -58,14 +60,18 @@ static double automatic_fan_speed(float chip_temp, GlobalState * GLOBAL_STATE)
         result = ((chip_temp - min_temp) / temp_range) * fan_range + min_fan_speed;
     }
 
+    float perc = (float) result / 100;
     switch (GLOBAL_STATE->device_model) {
         case DEVICE_MAX:
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
-            float perc = (float) result / 100;
             GLOBAL_STATE->POWER_MANAGEMENT_MODULE.fan_perc = perc;
             EMC2101_set_fan_speed( perc );
+            break;
+        case DEVICE_LV07:
+            GLOBAL_STATE->POWER_MANAGEMENT_MODULE.fan_perc = perc;
+            EMC230X_set_fan_speed(FAN1, perc);
             break;
         default:
     }
@@ -113,6 +119,8 @@ void POWER_MANAGEMENT_task(void * pvParameters)
             break;
         case DEVICE_GAMMA:
             break;
+        case DEVICE_LV07:
+            TMP1075_init();
         default:
     }
 
@@ -143,17 +151,28 @@ void POWER_MANAGEMENT_task(void * pvParameters)
             
                 break;
             case DEVICE_GAMMA:
-                    power_management->voltage = TPS546_get_vin() * 1000;
-                    power_management->current = TPS546_get_iout() * 1000;
+            case DEVICE_LV07:
+                    float v_in = TPS546_get_vin();
+                    float v_out = TPS546_get_vout();
+                    float i_out = TPS546_get_iout();
+                    ESP_LOGE(TAG, "v_in=%f v_out=%f i_out=%f", v_in, v_out, i_out);
+                    power_management->voltage = v_in * 1000;
+                    power_management->current = i_out * 1000;
                     // calculate regulator power (in milliwatts)
-                    power_management->power = (TPS546_get_vout() * power_management->current) / 1000;
+                    power_management->power = (v_out * power_management->current) / 1000;
                     // The power reading from the TPS546 is only it's output power. So the rest of the Bitaxe power is not accounted for.
                     power_management->power += GAMMA_POWER_OFFSET; // Add offset for the rest of the Bitaxe power. TODO: this better.
                 break;
             default:
         }
 
-        power_management->fan_rpm = EMC2101_get_fan_speed();
+        switch (GLOBAL_STATE->device_model) {
+            case DEVICE_LV07:
+                power_management->fan_rpm = EMC230X_get_fan_speed(FAN1);
+                break;
+            default:
+                power_management->fan_rpm = EMC2101_get_fan_speed();
+        }
 
         switch (GLOBAL_STATE->device_model) {
             case DEVICE_MAX:
@@ -238,6 +257,34 @@ void POWER_MANAGEMENT_task(void * pvParameters)
                     exit(EXIT_FAILURE);
                 }
                 break;
+            //    
+            case DEVICE_LV07:
+                int asic1_temp = TMP1075_read_temperature(0);
+                int asic2_temp = TMP1075_read_temperature(1);
+                int chip_temp_avg = ( asic1_temp + asic2_temp ) / 2;
+                ESP_LOGE(TAG, "asic1_temp=%d.C asic2_temp=%d.C avg=%d.C", asic1_temp, asic2_temp, chip_temp_avg);
+                power_management->chip_temp_avg = chip_temp_avg;
+                power_management->vr_temp = (float)TPS546_get_temperature();
+                //overheat mode if the voltage regulator or ASIC is too hot
+                if (
+                    (power_management->vr_temp > TPS546_THROTTLE_TEMP || power_management->chip_temp_avg > THROTTLE_TEMP) 
+                    &&
+                    (power_management->frequency_value > 50 || power_management->voltage > 1000)) {
+                    ESP_LOGE(TAG, "OVERHEAT! VR: %fC ASIC %fC", power_management->vr_temp, power_management->chip_temp_avg );
+
+                    EMC230X_set_fan_speed(FAN1, 1);
+
+                    // Turn off core voltage
+                    VCORE_set_voltage(0.0, GLOBAL_STATE);
+
+                    nvs_config_set_u16(NVS_CONFIG_ASIC_VOLTAGE, 1000);
+                    nvs_config_set_u16(NVS_CONFIG_ASIC_FREQ, 50);
+                    nvs_config_set_u16(NVS_CONFIG_FAN_SPEED, 100);
+                    nvs_config_set_u16(NVS_CONFIG_AUTO_FAN_SPEED, 0);
+                    nvs_config_set_u16(NVS_CONFIG_OVERHEAT_MODE, 1);
+                    exit(EXIT_FAILURE);
+                }
+                break;
             default:
         }
 
@@ -252,7 +299,7 @@ void POWER_MANAGEMENT_task(void * pvParameters)
                 case DEVICE_ULTRA:
                 case DEVICE_SUPRA:
                 case DEVICE_GAMMA:
-
+                case DEVICE_LV07:
                     float fs = (float) nvs_config_get_u16(NVS_CONFIG_FAN_SPEED, 100);
                     power_management->fan_perc = fs;
                     EMC2101_set_fan_speed((float) fs / 100);

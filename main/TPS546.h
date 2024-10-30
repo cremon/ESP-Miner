@@ -22,6 +22,10 @@
 #define TPS546_INIT_VIN_UV_WARN_LIMIT 5.8 /* V */
 #define TPS546_INIT_VIN_OV_FAULT_LIMIT 6.0 /* V */
 #define TPS546_INIT_VIN_OV_FAULT_RESPONSE 0xB7  /* retry 6 times */
+#define LV07_TPS546_INIT_VIN_ON  11.5  /* V */
+#define LV07_TPS546_INIT_VIN_OFF 11.0  /* V */
+#define LV07_TPS546_INIT_VIN_UV_WARN_LIMIT 12.5 /* V */
+#define LV07_TPS546_INIT_VIN_OV_FAULT_LIMIT 13.0 /* V */
 
   /* vout voltage */
 #define TPS546_INIT_SCALE_LOOP 0.25  /* Voltage Scale factor */
@@ -67,12 +71,13 @@
 #define ON_OFF_CONFIG_POLARITY 0x00 // turn off POLARITY bit
 #define ON_OFF_CONFIG_DELAY 0x00 // turn off DELAY bit
 
+#include "global_state.h"
 
 /* public functions */
-int TPS546_init(void);
+int TPS546_init(GlobalState * global_state);
 void TPS546_read_mfr_info(uint8_t *);
 void TPS546_set_mfr_info(void);
-void TPS546_write_entire_config(void);
+void TPS546_write_entire_config(GlobalState * global_state);
 int TPS546_get_frequency(void);
 void TPS546_set_frequency(int);
 int TPS546_get_temperature(void);

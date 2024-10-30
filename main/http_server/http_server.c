@@ -31,6 +31,7 @@
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include <pthread.h>
+#include "TMP1075.h"
 
 static const char * TAG = "http_server";
 
@@ -397,6 +398,8 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "voltage", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.voltage);
     cJSON_AddNumberToObject(root, "current", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.current);
     cJSON_AddNumberToObject(root, "temp", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.chip_temp_avg);
+    cJSON_AddNumberToObject(root, "boardtemp1", TMP1075_read_temperature(0));
+    cJSON_AddNumberToObject(root, "boardtemp2", TMP1075_read_temperature(1));
     cJSON_AddNumberToObject(root, "vrTemp", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.vr_temp);
     cJSON_AddNumberToObject(root, "hashRate", GLOBAL_STATE->SYSTEM_MODULE.current_hashrate);
     cJSON_AddStringToObject(root, "bestDiff", GLOBAL_STATE->SYSTEM_MODULE.best_diff_string);
