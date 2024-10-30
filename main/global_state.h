@@ -27,7 +27,7 @@ typedef enum
     DEVICE_ULTRA,
     DEVICE_SUPRA,
     DEVICE_GAMMA,
-    DEVICE_GAMMATURBO,
+    DEVICE_LV07,
 } DeviceModel;
 
 typedef enum
@@ -39,15 +39,15 @@ typedef enum
     ASIC_BM1370,
 } AsicModel;
 
-// typedef struct
-// {
-//     uint8_t (*init_fn)(uint64_t, uint16_t);
-//     task_result * (*receive_result_fn)(void * GLOBAL_STATE);
-//     int (*set_max_baud_fn)(void);
-//     void (*set_difficulty_mask_fn)(int);
-//     void (*send_work_fn)(void * GLOBAL_STATE, bm_job * next_bm_job);
-//     void (*set_version_mask)(uint32_t);
-// } AsicFunctions;
+typedef struct
+{
+    uint8_t (*init_fn)(uint64_t, uint16_t);
+    task_result * (*receive_result_fn)(void * GLOBAL_STATE);
+    int (*set_max_baud_fn)(void);
+    void (*set_difficulty_mask_fn)(int);
+    void (*send_work_fn)(void * GLOBAL_STATE, bm_job * next_bm_job);
+    void (*set_version_mask)(uint32_t);
+} AsicFunctions;
 
 typedef struct
 {
@@ -61,40 +61,23 @@ typedef struct
     uint64_t shares_accepted;
     uint64_t shares_rejected;
     int screen_page;
+    char oled_buf[20];
     uint64_t best_nonce_diff;
     char best_diff_string[DIFF_STRING_SIZE];
     uint64_t best_session_nonce_diff;
     char best_session_diff_string[DIFF_STRING_SIZE];
     bool FOUND_BLOCK;
+    bool startup_done;
     char ssid[32];
     char wifi_status[20];
-    char ip_addr_str[16]; // IP4ADDR_STRLEN_MAX
-    char ap_ssid[32];
-    bool ap_enabled;
     char * pool_url;
     char * fallback_pool_url;
     uint16_t pool_port;
     uint16_t fallback_pool_port;
-    char * pool_user;
-    char * fallback_pool_user;
-    char * pool_pass;
-    char * fallback_pool_pass;
     bool is_using_fallback;
     uint16_t overheat_mode;
     uint32_t lastClockSync;
-    bool is_screen_active;
-    bool is_firmware_update;
-    char firmware_update_filename[20];
-    char firmware_update_status[20];
 } SystemModule;
-
-typedef struct
-{
-    bool active;
-    char *message;
-    bool result;
-    bool finished;
-} SelfTestModule;
 
 typedef struct
 {
@@ -102,8 +85,10 @@ typedef struct
     char * device_model_str;
     int board_version;
     AsicModel asic_model;
-    bool valid_model;
     char * asic_model_str;
+    uint16_t asic_count;
+    uint16_t voltage_domain;
+    AsicFunctions ASIC_functions;
     double asic_job_frequency_ms;
     uint32_t ASIC_difficulty;
 
@@ -114,7 +99,6 @@ typedef struct
     SystemModule SYSTEM_MODULE;
     AsicTaskModule ASIC_TASK_MODULE;
     PowerManagementModule POWER_MANAGEMENT_MODULE;
-    SelfTestModule SELF_TEST_MODULE;
 
     char * extranonce_str;
     int extranonce_2_len;
@@ -128,13 +112,7 @@ typedef struct
     bool new_stratum_version_rolling_msg;
 
     int sock;
-
-    // A message ID that must be unique per request that expects a response.
-    // For requests not expecting a response (called notifications), this is null.
-    int send_uid;
-
     bool ASIC_initalized;
-    bool psram_is_available;
 } GlobalState;
 
 #endif /* GLOBAL_STATE_H_ */
