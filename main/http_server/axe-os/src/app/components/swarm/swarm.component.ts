@@ -63,13 +63,14 @@ export class SwarmComponent implements OnInit, OnDestroy {
 
     if (swarmData == null) {
       this.scanNetwork();
+      //this.swarm$ = this.scanNetwork('192.168.1.23', '255.255.255.0').pipe(take(1));
     } else {
       this.swarm = swarmData;
       this.refreshList();
     }
 
     this.refreshIntervalRef = window.setInterval(() => {
-      if (!this.scanning && !this.isRefreshing) {
+      if (!this.isRefreshing) {
         this.refreshIntervalTime--;
         if (this.refreshIntervalTime <= 0) {
           this.refreshList();
@@ -82,6 +83,8 @@ export class SwarmComponent implements OnInit, OnDestroy {
     window.clearInterval(this.refreshIntervalRef);
     this.form.reset();
   }
+
+
 
   private ipToInt(ip: string): number {
     return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
@@ -108,15 +111,12 @@ export class SwarmComponent implements OnInit, OnDestroy {
       mergeMap(ipAddr =>
         this.httpClient.get(`http://${ipAddr}/api/system/info`).pipe(
           map(result => {
-            if ('hashRate' in result) {
-              return {
-                IP: ipAddr,
-                ...result
-              };
+            return {
+              IP: ipAddr,
+              ...result
             }
-            return null;
           }),
-          timeout(5000), // Set the timeout to 5 seconds
+          timeout(5000), // Set the timeout to 1 second
           catchError(error => {
             //console.error(`Request to ${ipAddr}/api/system/info failed or timed out`, error);
             return []; // Return an empty result or handle as desired
@@ -127,11 +127,9 @@ export class SwarmComponent implements OnInit, OnDestroy {
       toArray() // Collect all results into a single array
     ).pipe(take(1)).subscribe({
       next: (result) => {
-        // Filter out null items first
-        const validResults = result.filter((item): item is NonNullable<typeof item> => item !== null);
         // Merge new results with existing swarm entries
         const existingIps = new Set(this.swarm.map(item => item.IP));
-        const newItems = validResults.filter(item => !existingIps.has(item.IP));
+        const newItems = result.filter(item => !existingIps.has(item.IP));
         this.swarm = [...this.swarm, ...newItems].sort(this.sortByIp.bind(this));
         this.localStorageService.setObject(SWARM_DATA, this.swarm);
         this.calculateTotals();
@@ -169,12 +167,12 @@ export class SwarmComponent implements OnInit, OnDestroy {
   public restart(axe: any) {
     this.systemService.restart(`http://${axe.IP}`).pipe(
       catchError(error => {
-        this.toastr.error(`Failed to restart device at ${axe.IP}`, 'Error');
+        this.toastr.error('Failed to restart device', 'Error');
         return of(null);
       })
     ).subscribe(res => {
       if (res !== null) {
-        this.toastr.success(`Bitaxe at ${axe.IP} restarted`, 'Success');
+        this.toastr.success('Bitaxe restarted', 'Success');
       }
     });
   }
@@ -186,10 +184,6 @@ export class SwarmComponent implements OnInit, OnDestroy {
   }
 
   public refreshList() {
-    if (this.scanning) {
-      return;
-    }
-    
     this.refreshIntervalTime = this.refreshTimeSet;
     const ips = this.swarm.map(axeOs => axeOs.IP);
     this.isRefreshing = true;
@@ -268,14 +262,6 @@ export class SwarmComponent implements OnInit, OnDestroy {
     this.totals.power = this.swarm.reduce((sum, axe) => sum + (axe.power || 0), 0);
     const maxDiff = Math.max(...this.swarm.map(axe => this.convertBestDiffToNumber(axe.bestDiff)));
     this.totals.bestDiff = this.formatBestDiff(maxDiff);
-  }
-
-  hasModel(model: string): string {
-    return this.swarm.some(axe => axe.ASICModel === model) ? '1' : '0.5';
-  }
-
-  hasMultipleChips(): string {
-    return this.swarm.some(axe => axe.asicCount > 1) ? '1' : '0.5';
   }
 
 }

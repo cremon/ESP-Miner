@@ -20,7 +20,7 @@
 
 static const char *TAG = "serial";
 
-esp_err_t SERIAL_init(void)
+void SERIAL_init(void)
 {
     ESP_LOGI(TAG, "Initializing serial");
     // Configure UART1 parameters
@@ -33,26 +33,24 @@ esp_err_t SERIAL_init(void)
         .rx_flow_ctrl_thresh = 122,
     };
     // Configure UART1 parameters
-    ESP_ERROR_CHECK_WITHOUT_ABORT(uart_param_config(UART_NUM_1, &uart_config));
+    uart_param_config(UART_NUM_1, &uart_config);
     // Set UART1 pins(TX: IO17, RX: I018)
-    ESP_ERROR_CHECK_WITHOUT_ABORT(uart_set_pin(UART_NUM_1, ECHO_TEST_TXD, ECHO_TEST_RXD, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+    uart_set_pin(UART_NUM_1, ECHO_TEST_TXD, ECHO_TEST_RXD, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
     // Install UART driver (we don't need an event queue here)
     // tx buffer 0 so the tx time doesn't overlap with the job wait time
     //  by returning before the job is written
-    return uart_driver_install(UART_NUM_1, BUF_SIZE * 2, BUF_SIZE * 2, 0, NULL, 0);
+    uart_driver_install(UART_NUM_1, BUF_SIZE * 2, BUF_SIZE * 2, 0, NULL, 0);
 }
 
-esp_err_t SERIAL_set_baud(int baud)
+void SERIAL_set_baud(int baud)
 {
     ESP_LOGI(TAG, "Changing UART baud to %i", baud);
 
     // Make sure that we are done writing before setting a new baudrate.
-    ESP_ERROR_CHECK_WITHOUT_ABORT(uart_wait_tx_done(UART_NUM_1, 1000 / portTICK_PERIOD_MS));
+    uart_wait_tx_done(UART_NUM_1, 1000 / portTICK_PERIOD_MS);
 
-    ESP_ERROR_CHECK_WITHOUT_ABORT(uart_set_baudrate(UART_NUM_1, baud));
-
-    return ESP_OK;
+    uart_set_baudrate(UART_NUM_1, baud);
 }
 
 int SERIAL_send(uint8_t *data, int len, bool debug)
