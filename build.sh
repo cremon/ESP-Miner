@@ -2,7 +2,7 @@
 BINFILE=./build/test`date +%s`.bin
 IDFCMD=idf.py
 
-for i in $IDFCMD bitaxetool; do
+for i in $IDFCMD bitaxetool npm; do
   command -v $i >/dev/null 2>&1 || { echo >&2 "I require $i but it's not installed.  Aborting."; exit 1; }
 done
 

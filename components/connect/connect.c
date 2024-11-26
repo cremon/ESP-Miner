@@ -49,7 +49,7 @@
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
 
-static const char * TAG = "wifi station";
+static const char * TAG = "wifi_station";
 
 static int s_retry_num = 0;
 
@@ -58,9 +58,13 @@ static void event_handler(void * arg, esp_event_base_t event_base, int32_t event
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-
         //lookup the exact reason code
         wifi_event_sta_disconnected_t* event = (wifi_event_sta_disconnected_t*) event_data;
+        if (event->reason == WIFI_REASON_ROAMING) {
+            ESP_LOGI(TAG, "We are roaming, nothing to do");
+            return;
+        }
+
         ESP_LOGI(TAG, "Could not connect to '%s' [rssi %d]: reason %d", event->ssid, event->rssi, event->reason);
 
         // Wait a little
@@ -102,7 +106,7 @@ esp_netif_t * wifi_init_softap(void)
     strncpy((char *) wifi_ap_config.ap.ssid, ssid_with_mac, sizeof(wifi_ap_config.ap.ssid));
     wifi_ap_config.ap.ssid_len = strlen(ssid_with_mac);
     wifi_ap_config.ap.channel = 1;
-    wifi_ap_config.ap.max_connection = 30;
+    wifi_ap_config.ap.max_connection = 10;
     wifi_ap_config.ap.authmode = WIFI_AUTH_OPEN;
     wifi_ap_config.ap.pmf_cfg.required = false;
 

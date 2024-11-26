@@ -151,6 +151,13 @@ void POWER_MANAGEMENT_task(void * pvParameters)
             
                 break;
             case DEVICE_GAMMA:
+                    power_management->voltage = TPS546_get_vin() * 1000;
+                    power_management->current = TPS546_get_iout() * 1000;
+                    // calculate regulator power (in milliwatts)
+                    power_management->power = (TPS546_get_vout() * power_management->current) / 1000;
+                    // The power reading from the TPS546 is only it's output power. So the rest of the Bitaxe power is not accounted for.
+                    power_management->power += GAMMA_POWER_OFFSET; // Add offset for the rest of the Bitaxe power. TODO: this better.
+                break;
             case DEVICE_LV07:
                     float v_in = TPS546_get_vin();
                     float v_out = TPS546_get_vout();

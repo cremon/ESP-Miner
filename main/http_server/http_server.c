@@ -115,14 +115,27 @@ static esp_err_t set_content_type_from_file(httpd_req_t * req, const char * file
     }
     return httpd_resp_set_type(req, type);
 }
+
 static esp_err_t set_cors_headers(httpd_req_t * req)
 {
+    esp_err_t err;
 
-    return httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*") == ESP_OK &&
-                   httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS") == ESP_OK &&
-                   httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Content-Type") == ESP_OK
-               ? ESP_OK
-               : ESP_FAIL;
+    err = httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    if (err != ESP_OK) {
+        return ESP_FAIL;
+    }
+
+    err = httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    if (err != ESP_OK) {
+        return ESP_FAIL;
+    }
+
+    err = httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Content-Type");
+    if (err != ESP_OK) {
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
 }
 
 /* Recovery handler */
@@ -182,7 +195,7 @@ static esp_err_t rest_common_get_handler(httpd_req_t * req)
                 httpd_resp_sendstr_chunk(req, NULL);
                 /* Respond with 500 Internal Server Error */
                 httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send file");
-                return ESP_FAIL;
+                return ESP_OK;
             }
         }
     } while (read_bytes > 0);
@@ -194,45 +207,12 @@ static esp_err_t rest_common_get_handler(httpd_req_t * req)
     return ESP_OK;
 }
 
-static esp_err_t PATCH_update_swarm(httpd_req_t * req)
-{
-    // Set CORS headers
-    if (set_cors_headers(req) != ESP_OK) {
-        httpd_resp_send_500(req);
-        return ESP_FAIL;
-    }
-
-    int total_len = req->content_len;
-    int cur_len = 0;
-    char * buf = ((rest_server_context_t *) (req->user_ctx))->scratch;
-    int received = 0;
-    if (total_len >= SCRATCH_BUFSIZE) {
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
-        return ESP_FAIL;
-    }
-    while (cur_len < total_len) {
-        received = httpd_req_recv(req, buf + cur_len, total_len);
-        if (received <= 0) {
-            /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
-            return ESP_FAIL;
-        }
-        cur_len += received;
-    }
-    buf[total_len] = '\0';
-
-    nvs_config_set_string(NVS_CONFIG_SWARM, buf);
-    httpd_resp_send_chunk(req, NULL, 0);
-    return ESP_OK;
-}
-
 static esp_err_t handle_options_request(httpd_req_t * req)
 {
     // Set CORS headers for OPTIONS request
     if (set_cors_headers(req) != ESP_OK) {
         httpd_resp_send_500(req);
-        return ESP_FAIL;
+        return ESP_OK;
     }
 
     // Send a blank response for OPTIONS request
@@ -246,7 +226,7 @@ static esp_err_t PATCH_update_settings(httpd_req_t * req)
     // Set CORS headers
     if (set_cors_headers(req) != ESP_OK) {
         httpd_resp_send_500(req);
-        return ESP_FAIL;
+        return ESP_OK;
     }
 
     int total_len = req->content_len;
@@ -256,14 +236,14 @@ static esp_err_t PATCH_update_settings(httpd_req_t * req)
     if (total_len >= SCRATCH_BUFSIZE) {
         /* Respond with 500 Internal Server Error */
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
-        return ESP_FAIL;
+        return ESP_OK;
     }
     while (cur_len < total_len) {
         received = httpd_req_recv(req, buf + cur_len, total_len);
         if (received <= 0) {
             /* Respond with 500 Internal Server Error */
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
-            return ESP_FAIL;
+            return ESP_OK;
         }
         cur_len += received;
     }
@@ -271,6 +251,11 @@ static esp_err_t PATCH_update_settings(httpd_req_t * req)
 
     cJSON * root = cJSON_Parse(buf);
     cJSON * item;
+    if (root == NULL) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_OK;
+    }
+
     if ((item = cJSON_GetObjectItem(root, "stratumURL")) != NULL) {
         nvs_config_set_string(NVS_CONFIG_STRATUM_URL, item->valuestring);
     }
@@ -336,6 +321,12 @@ static esp_err_t PATCH_update_settings(httpd_req_t * req)
 
 static esp_err_t POST_restart(httpd_req_t * req)
 {
+    // Set CORS headers
+    if (set_cors_headers(req) != ESP_OK) {
+        httpd_resp_send_500(req);
+        return ESP_OK;
+    }
+
     ESP_LOGI(TAG, "Restarting System because of API Request");
 
     // Send HTTP response before restarting
@@ -352,22 +343,6 @@ static esp_err_t POST_restart(httpd_req_t * req)
     return ESP_OK;
 }
 
-static esp_err_t GET_swarm(httpd_req_t * req)
-{
-    httpd_resp_set_type(req, "application/json");
-
-    // Set CORS headers
-    if (set_cors_headers(req) != ESP_OK) {
-        httpd_resp_send_500(req);
-        return ESP_FAIL;
-    }
-
-    char * swarm_config = nvs_config_get_string(NVS_CONFIG_SWARM, "[]");
-    httpd_resp_sendstr(req, swarm_config);
-    free(swarm_config);
-    return ESP_OK;
-}
-
 /* Simple handler for getting system handler */
 static esp_err_t GET_system_info(httpd_req_t * req)
 {
@@ -376,7 +351,7 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     // Set CORS headers
     if (set_cors_headers(req) != ESP_OK) {
         httpd_resp_send_500(req);
-        return ESP_FAIL;
+        return ESP_OK;
     }
 
 
@@ -404,6 +379,7 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "hashRate", GLOBAL_STATE->SYSTEM_MODULE.current_hashrate);
     cJSON_AddStringToObject(root, "bestDiff", GLOBAL_STATE->SYSTEM_MODULE.best_diff_string);
     cJSON_AddStringToObject(root, "bestSessionDiff", GLOBAL_STATE->SYSTEM_MODULE.best_session_diff_string);
+    cJSON_AddNumberToObject(root, "stratumDiff", GLOBAL_STATE->stratum_difficulty);
 
     cJSON_AddNumberToObject(root, "isUsingFallbackStratum", GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback);
 
@@ -732,13 +708,6 @@ esp_err_t start_rest_server(void * pvParameters)
         .uri = "/api/system/info", .method = HTTP_GET, .handler = GET_system_info, .user_ctx = rest_context};
     httpd_register_uri_handler(server, &system_info_get_uri);
 
-    httpd_uri_t swarm_get_uri = {.uri = "/api/swarm/info", .method = HTTP_GET, .handler = GET_swarm, .user_ctx = rest_context};
-    httpd_register_uri_handler(server, &swarm_get_uri);
-
-    httpd_uri_t update_swarm_uri = {
-        .uri = "/api/swarm", .method = HTTP_PATCH, .handler = PATCH_update_swarm, .user_ctx = rest_context};
-    httpd_register_uri_handler(server, &update_swarm_uri);
-
     httpd_uri_t swarm_options_uri = {
         .uri = "/api/swarm",
         .method = HTTP_OPTIONS,
@@ -750,6 +719,10 @@ esp_err_t start_rest_server(void * pvParameters)
     httpd_uri_t system_restart_uri = {
         .uri = "/api/system/restart", .method = HTTP_POST, .handler = POST_restart, .user_ctx = rest_context};
     httpd_register_uri_handler(server, &system_restart_uri);
+
+    httpd_uri_t system_restart_options_uri = {
+        .uri = "/api/system/restart", .method = HTTP_OPTIONS, .handler = handle_options_request, .user_ctx = NULL};
+    httpd_register_uri_handler(server, &system_restart_options_uri);
 
     httpd_uri_t update_system_settings_uri = {
         .uri = "/api/system", .method = HTTP_PATCH, .handler = PATCH_update_settings, .user_ctx = rest_context};
