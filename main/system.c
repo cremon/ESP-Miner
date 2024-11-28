@@ -110,13 +110,13 @@ void SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
         case DEVICE_MAX:
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
-        case DEVICE_GAMMA:
             EMC2101_init(nvs_config_get_u16(NVS_CONFIG_INVERT_FAN_POLARITY, 1));
             break;
-        default:
-    }
-
-    switch (GLOBAL_STATE->device_model) {
+        case DEVICE_GAMMA:
+            EMC2101_init(nvs_config_get_u16(NVS_CONFIG_INVERT_FAN_POLARITY, 1));
+            EMC2101_set_ideality_factor(EMC2101_IDEALITY_1_0319);
+            EMC2101_set_beta_compensation(EMC2101_BETA_11);
+            break;
         case DEVICE_LV07:
             EMC230X_init(EMC230X_PRODUCT_EMC2302, FAN1);
             nvs_config_set_u16(NVS_CONFIG_OVERHEAT_MODE, 0);
