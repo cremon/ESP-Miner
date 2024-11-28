@@ -69,7 +69,7 @@ export class SystemService {
   }
 
   public restart(uri: string = '') {
-    return this.httpClient.post(`${uri}/api/system/restart`, {});
+    return this.httpClient.post(`${uri}/api/system/restart`, {}, {responseType: 'text'});
   }
 
   public updateSystem(uri: string = '', update: any) {
@@ -92,14 +92,13 @@ export class SystemService {
             'Content-Type': 'application/octet-stream', // Set the content type
           },
         }).subscribe({
-          next: (e) => {
-
+          next: (event) => {
+            subscriber.next(event);
           },
           error: (err) => {
             subscriber.error(err)
           },
           complete: () => {
-            subscriber.next()
             subscriber.complete();
           }
         });
