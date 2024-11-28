@@ -48,7 +48,9 @@ void SERIAL_set_baud(int baud)
     ESP_LOGI(TAG, "Changing UART baud to %i", baud);
 
     // Make sure that we are done writing before setting a new baudrate.
-    uart_wait_tx_done(UART_NUM_1, 1000 / portTICK_PERIOD_MS);
+
+    //NOTE: commented out for LV07 (it slows down asic )
+    //uart_wait_tx_done(UART_NUM_1, 1000 / portTICK_PERIOD_MS);
 
     uart_set_baudrate(UART_NUM_1, baud);
 }
