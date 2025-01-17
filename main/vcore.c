@@ -36,13 +36,11 @@ esp_err_t VCORE_init(GlobalState * global_state) {
             }
             break;
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
             if (TPS546_init(global_state) != ESP_OK) {
                 ESP_LOGE(TAG, "TPS546 init failed!");
                 return ESP_FAIL;
             }
-            break;
-        case DEVICE_LV07:
-            TPS546_init(global_state);
             break;
         // case DEVICE_HEX:
         default:
