@@ -171,6 +171,7 @@ esp_err_t test_input(GlobalState * GLOBAL_STATE) {
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
             if (input_init(NULL, reset_self_test) != ESP_OK) {
                 display_msg("INPUT:FAIL", GLOBAL_STATE);
                 return ESP_FAIL;
@@ -191,6 +192,7 @@ esp_err_t test_screen(GlobalState * GLOBAL_STATE) {
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
             if (screen_start(GLOBAL_STATE) != ESP_OK) {
                 display_msg("SCREEN:FAIL", GLOBAL_STATE);
                 return ESP_FAIL;
@@ -477,6 +479,7 @@ void self_test(void * pvParameters)
             }
             break;
         case DEVICE_GAMMA:
+        case DEVICE_LV07:
             if(hash_rate < HASHRATE_TARGET_GAMMA){
                 display_msg("HASHRATE:FAIL", GLOBAL_STATE);
                 tests_done(GLOBAL_STATE, TESTS_FAILED);
