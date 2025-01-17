@@ -6,7 +6,6 @@ typedef enum {
     SCR_OVERHEAT,
     SCR_INVALID_ASIC,
     SCR_CONFIGURE,
-    SCR_FIRMWARE_UPDATE,
     SCR_CONNECTION,
     SCR_LOGO,
     SCR_URLS,
