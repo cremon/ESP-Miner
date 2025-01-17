@@ -21,7 +21,7 @@ esp_err_t EMC230X_init(int product, EMC230X_FAN fan)
 	uint8_t Manufacturer_ID;
     uint8_t silicon_Revision;
 
-    if (i2c_bitaxe_add_device(EMC230X_ADDRESS, &emc230x_dev_handle) != ESP_OK) {
+    if (i2c_bitaxe_add_device(EMC230X_ADDRESS, &emc230x_dev_handle, TAG) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to add device");
         return ESP_FAIL;
     }
