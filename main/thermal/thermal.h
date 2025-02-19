@@ -6,7 +6,10 @@
 
 #include "EMC2101.h"
 #include "EMC2103.h"
+#include "EMC230X.h"
 #include "global_state.h"
+
+#include "TMP1075.h"
 
 esp_err_t Thermal_init(DeviceModel device_model, bool polarity);
 esp_err_t Thermal_set_fan_percent(DeviceModel device_model, float percent);

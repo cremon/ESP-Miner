@@ -3,7 +3,7 @@
 
 #include "EMC230X.h"
 
-static const char * TAG = "EMC230X";
+static const char * TAG = "EMC230x";
 
 static i2c_master_dev_handle_t emc230x_dev_handle;
 
