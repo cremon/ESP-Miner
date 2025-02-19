@@ -15,3 +15,7 @@ $IDFCMD build && \
     ./merge_bin.sh $BINFILE && \
     bitaxetool --config ./config.csv --firmware $BINFILE
 
+
+##### DEBUG Guru Meditation
+####  1. get PC
+####  2. then, xtensa-esp32-elf-addr2line -pfiaC -e build/esp-miner.elf {{PC}}

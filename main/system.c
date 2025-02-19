@@ -20,10 +20,6 @@
 
 #include "system.h"
 #include "i2c_bitaxe.h"
-#include "EMC2101.h"
-#include "EMC230X.h"
-#include "TPS546.h"
-#include "TMP1075.h"
 #include "INA260.h"
 #include "adc.h"
 #include "connect.h"
@@ -32,6 +28,7 @@
 #include "input.h"
 #include "screen.h"
 #include "vcore.h"
+#include "thermal.h"
 
 static const char * TAG = "SystemModule";
 
@@ -66,9 +63,17 @@ void SYSTEM_init_system(GlobalState * GLOBAL_STATE)
     module->pool_url = nvs_config_get_string(NVS_CONFIG_STRATUM_URL, CONFIG_STRATUM_URL);
     module->fallback_pool_url = nvs_config_get_string(NVS_CONFIG_FALLBACK_STRATUM_URL, CONFIG_FALLBACK_STRATUM_URL);
 
-    //set the pool port
+    // set the pool port
     module->pool_port = nvs_config_get_u16(NVS_CONFIG_STRATUM_PORT, CONFIG_STRATUM_PORT);
     module->fallback_pool_port = nvs_config_get_u16(NVS_CONFIG_FALLBACK_STRATUM_PORT, CONFIG_FALLBACK_STRATUM_PORT);
+
+    // set the pool user
+    module->pool_user = nvs_config_get_string(NVS_CONFIG_STRATUM_USER, CONFIG_STRATUM_USER);
+    module->fallback_pool_user = nvs_config_get_string(NVS_CONFIG_FALLBACK_STRATUM_USER, CONFIG_FALLBACK_STRATUM_USER);
+
+    // set the pool password
+    module->pool_pass = nvs_config_get_string(NVS_CONFIG_STRATUM_PASS, CONFIG_STRATUM_PW);
+    module->fallback_pool_pass = nvs_config_get_string(NVS_CONFIG_FALLBACK_STRATUM_PASS, CONFIG_FALLBACK_STRATUM_PW);
 
     // set fallback to false.
     module->is_using_fallback = false;
@@ -93,43 +98,7 @@ void SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
     VCORE_init(GLOBAL_STATE);
     VCORE_set_voltage(nvs_config_get_u16(NVS_CONFIG_ASIC_VOLTAGE, CONFIG_ASIC_VOLTAGE) / 1000.0, GLOBAL_STATE);
 
-    //init the EMC2101, if we have one
-    switch (GLOBAL_STATE->device_model) {
-        case DEVICE_MAX:
-        case DEVICE_ULTRA:
-        case DEVICE_SUPRA:
-            EMC2101_init(nvs_config_get_u16(NVS_CONFIG_INVERT_FAN_POLARITY, 1));
-            break;
-        case DEVICE_GAMMA:
-            EMC2101_init(nvs_config_get_u16(NVS_CONFIG_INVERT_FAN_POLARITY, 1));
-            EMC2101_set_ideality_factor(EMC2101_IDEALITY_1_0319);
-            EMC2101_set_beta_compensation(EMC2101_BETA_11);
-            break;
-        default:
-    }
-
-    switch (GLOBAL_STATE->device_model) {
-        case DEVICE_LV07:
-            EMC230X_init(EMC230X_PRODUCT_EMC2302, FAN1);
-            nvs_config_set_u16(NVS_CONFIG_OVERHEAT_MODE, 0);
-             //module->overheat_mode = 0;
-            break;
-        default:
-    }
-
-    //initialize the INA260, if we have one.
-    switch (GLOBAL_STATE->device_model) {
-        case DEVICE_MAX:
-        case DEVICE_ULTRA:
-        case DEVICE_SUPRA:
-            if (GLOBAL_STATE->board_version < 402) {
-                INA260_init();
-            }
-            break;
-        case DEVICE_GAMMA:
-        case DEVICE_LV07:
-        default:
-    }
+    Thermal_init(GLOBAL_STATE->device_model, nvs_config_get_u16(NVS_CONFIG_INVERT_FAN_POLARITY, 1));
 
     vTaskDelay(500 / portTICK_PERIOD_MS);
 
@@ -145,6 +114,7 @@ void SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
+        case DEVICE_GAMMATURBO:
         case DEVICE_LV07:
             // display
             if (display_init(GLOBAL_STATE) != ESP_OK || !GLOBAL_STATE->SYSTEM_MODULE.is_screen_active) {
